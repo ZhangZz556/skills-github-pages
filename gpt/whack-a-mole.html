@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>打地鼠游戏</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #e0f7fa;
+        }
+
+        .scoreboard, .history {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #00796b;
+            background-color: #ffffff;
+            padding: 10px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .game-board {
+            display: grid;
+            grid-gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .hole {
+            width: 80px;
+            height: 80px;
+            background-color: #8d6e63;
+            border-radius: 50%;
+            position: relative;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .mole {
+            width: 60px;
+            height: 60px;
+            background-color: #ff5722;
+            border-radius: 50%;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            display: none;
+            transition: transform 0.3s;
+        }
+
+        .mole:hover {
+            transform: scale(1.1);
+        }
+
+        .mode-select, .difficulty-select, .controls {
+            margin-bottom: 20px;
+        }
+
+        select, button {
+            padding: 10px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #00796b;
+            color: #ffffff;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        button:hover {
+            background-color: #004d40;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="mode-select">
+        <label for="mode">选择模式:</label>
+        <select id="mode">
+            <option value="normal">普通模式</option>
+            <option value="fast">快速模式</option>
+        </select>
+    </div>
+    <div class="difficulty-select">
+        <label for="difficulty">选择难度:</label>
+        <select id="difficulty">
+            <option value="easy">简单</option>
+            <option value="medium">普通</option>
+            <option value="hard">困难</option>
+            <option value="hell">地狱</option>
+        </select>
+    </div>
+    <div class="scoreboard">
+        得分: <span id="score">0</span> | 时间: <span id="timer">60</span> 秒
+    </div>
+    <div class="history">
+        历史最高分: <span id="high-score">0</span>
+        <button id="clear-history">清除历史记录</button>
+    </div>
+    <div class="controls">
+        <button id="start-game">开始游戏</button>
+        <button id="end-game" class="hidden">结束游戏</button>
+    </div>
+    <div class="game-board" id="game-board" class="hidden">
+        <!-- 洞口将动态生成 -->
+    </div>
+    <script>
+        const scoreDisplay = document.getElementById('score');
+        const timerDisplay = document.getElementById('timer');
+        const modeSelect = document.getElementById('mode');
+        const difficultySelect = document.getElementById('difficulty');
+        const gameBoard = document.getElementById('game-board');
+        const highScoreDisplay = document.getElementById('high-score');
+        const clearHistoryButton = document.getElementById('clear-history');
+        const startGameButton = document.getElementById('start-game');
+        const endGameButton = document.getElementById('end-game');
+        let score = 0;
+        let timeLeft = 60;
+        let currentMode = 'normal';
+        let currentDifficulty = 'easy';
+        let timer;
+
+        const difficultySettings = {
+            easy: { speed: 1000, holes: 9 },
+            medium: { speed: 800, holes: 16 },
+            hard: { speed: 600, holes: 25 },
+            hell: { speed: 400, holes: 36 }
+        };
+
+        function createHoles(num) {
+            gameBoard.innerHTML = ''; // 清空之前的洞口
+            const side = Math.sqrt(num);
+            gameBoard.style.gridTemplateColumns = `repeat(${side}, 80px)`;
+            for (let i = 0; i < num; i++) {
+                const hole = document.createElement('div');
+                hole.classList.add('hole');
+                const mole = document.createElement('div');
+                mole.classList.add('mole');
+                hole.appendChild(mole);
+                gameBoard.appendChild(hole);
+            }
+        }
+
+        function randomHole() {
+            const holes = document.querySelectorAll('.hole');
+            const index = Math.floor(Math.random() * holes.length);
+            return holes[index];
+        }
+
+        function showMole() {
+            const hole = randomHole();
+            const mole = hole.querySelector('.mole');
+            mole.style.display = 'block';
+
+            const delay = currentMode === 'fast' ? 0 : difficultySettings[currentDifficulty].speed;
+            setTimeout(() => {
+                mole.style.display = 'none';
+                if (timeLeft > 0) showMole();
+            }, delay);
+        }
+
+        function startGame() {
+            clearInterval(timer); // 清除之前的计时器
+            currentMode = modeSelect.value;
+            currentDifficulty = difficultySelect.value;
+            score = 0;
+            scoreDisplay.textContent = score;
+            timeLeft = 60;
+            timerDisplay.textContent = timeLeft;
+
+            createHoles(difficultySettings[currentDifficulty].holes);
+
+            const holes = document.querySelectorAll('.hole');
+            holes.forEach(hole => {
+                hole.addEventListener('click', () => {
+                    const mole = hole.querySelector('.mole');
+                    if (mole.style.display === 'block') {
+                        score++;
+                        scoreDisplay.textContent = score;
+                        mole.style.display = 'none';
+                        if (currentMode === 'fast') showMole();
+                    }
+                });
+            });
+
+            timer = setInterval(() => {
+                timeLeft--;
+                timerDisplay.textContent = timeLeft;
+                if (timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
+            showMole();
+
+            // 隐藏不必要的元素
+            modeSelect.parentElement.classList.add('hidden');
+            difficultySelect.parentElement.classList.add('hidden');
+            startGameButton.classList.add('hidden');
+            endGameButton.classList.remove('hidden');
+            gameBoard.classList.remove('hidden');
+        }
+
+        function endGame() {
+            clearInterval(timer);
+            let prize = '三等奖';
+            if (score >= 30) prize = '一等奖';
+            else if (score >= 20) prize = '二等奖';
+            alert('游戏结束！您的得分是: ' + score + '，获得' + prize);
+            updateHighScore();
+
+            // 显示选择和开始按钮
+            modeSelect.parentElement.classList.remove('hidden');
+            difficultySelect.parentElement.classList.remove('hidden');
+            startGameButton.classList.remove('hidden');
+            endGameButton.classList.add('hidden');
+            gameBoard.classList.add('hidden');
+        }
+
+        function updateHighScore() {
+            const highScore = localStorage.getItem('highScore') || 0;
+            if (score > highScore) {
+                localStorage.setItem('highScore', score);
+                highScoreDisplay.textContent = score;
+            }
+        }
+
+        function loadHighScore() {
+            const highScore = localStorage.getItem('highScore') || 0;
+            highScoreDisplay.textContent = highScore;
+        }
+
+        clearHistoryButton.addEventListener('click', () => {
+            localStorage.removeItem('highScore');
+            highScoreDisplay.textContent = 0;
+        });
+
+        startGameButton.addEventListener('click', startGame);
+        endGameButton.addEventListener('click', endGame);
+
+        loadHighScore();
+    </script>
+</body>
+
+</html> 
